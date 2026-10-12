@@ -50,6 +50,38 @@ The reasoner currently sets the Ollama URL and model in [core/reasoner.py](core/
 - [knowledge/knowledge_base.py](knowledge/knowledge_base.py): curated evidence.
 - [knowledge/build_kb.py](knowledge/build_kb.py): builds the persistent ChromaDB collection.
 
+## API usage and storage
+
+| Endpoint | Request |
+| --- | --- |
+| `GET /health` | Component readiness flags |
+| `POST /chat` | JSON containing `message` and a `session_id` |
+| `POST /analyze` | Structured environmental fields such as `soil_ph`, `soil_organic_carbon`, `rainfall`, `crop_type`, `region`, plus `session_id` |
+
+Example body for `POST /chat`:
+
+```json
+{
+  "message": "My soil organic carbon is 0.3% and rainfall is low. What information should I collect next?",
+  "session_id": "farm-demo-1"
+}
+```
+
+Reuse the session ID for follow-up questions; use a distinct ID for each independent conversation. Omitting it uses the shared `default-session`. Conversation memory is held in the API process, retains up to ten turns and is lost on restart; it is not a persistent account/history system.
+
+The evidence collection persists in `data/chroma_db` using `all-MiniLM-L6-v2` embeddings. Running `knowledge/build_kb.py` rebuilds the named knowledge collection, so treat it as a rebuild operation rather than a conversation backup.
+
+## Checking a local installation
+
+1. Run Ollama with `llama3.2:3b` available, build the knowledge collection, and start the API.
+2. Open `/health` and check that `components.retriever` and `components.reasoner` are both true. The top-level `status: healthy` alone is not sufficient.
+3. Send the sample chat request through `/docs`, then provide another environmental fact with the same session ID.
+4. Open Streamlit and confirm that the assessment, retrieved evidence and follow-up context appear.
+
+If initialization failed, fix the missing collection/model or Ollama connection and restart the API; the components are initialized when the module loads. Change `DARUKAA_API_URL` for the UI's API destination; the Ollama URL/model are separate settings in `core/reasoner.py`.
+
+The local-model architecture still needs downloads during setup. Generated confidence and health scores are heuristic indicators, not calibrated probabilities or field validation.
+
 ## Detailed design notes
 
 ### 1. Project Overview
