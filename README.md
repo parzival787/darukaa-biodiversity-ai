@@ -1,6 +1,58 @@
-Darukaa.Earth — AI Biodiversity Intelligence Chatbot
+# Darukaa.Earth — Biodiversity AI
 
-1. Project Overview
+A local AI prototype that turns a description of environmental conditions into recommendations backed by a curated knowledge base. It combines semantic retrieval, an Ollama language model, response validation, a heuristic health score, and an intervention plan.
+
+## Start here
+
+1. Describe a farm or landscape using information you actually know: soil carbon/pH, rainfall, temperature, crop, land use, or region.
+2. Read the assessment, recommendations, evidence citations, missing information, and proposed time horizons.
+3. Ask follow-up questions in the same session to build on the earlier context.
+
+**Example:** "My soil organic carbon is 0.3%, rainfall is low, and I grow wheat in a semi-arid region. What should I consider first?"
+
+The system is a decision-support prototype. Its score is heuristic, and evidence citations/validation do not establish that every generated recommendation is scientifically correct.
+
+## Quick setup
+
+Use a Python environment compatible with the dependencies in [requirements.txt](requirements.txt), plus Git and a running Ollama installation. From the repository root:
+
+```sh
+git clone https://github.com/parzival787/darukaa-biodiversity-ai.git
+cd darukaa-biodiversity-ai
+python -m venv .venv
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
+python -m pip install -r requirements.txt
+ollama pull llama3.2:3b
+python knowledge/build_kb.py
+python -m uvicorn api.main:app --reload --port 8000
+```
+
+In a second terminal with the same environment activated:
+
+```sh
+python -m streamlit run ui/app.py
+```
+
+Open the Streamlit URL printed by the terminal, normally http://localhost:8501. API documentation is at http://127.0.0.1:8000/docs. The first embedding-model download requires internet access.
+
+The reasoner currently sets the Ollama URL and model in [core/reasoner.py](core/reasoner.py). The UI supports `DARUKAA_API_URL` when the API is hosted at a different address.
+
+## Repository map
+
+- [ui/app.py](ui/app.py): chat interface and API client.
+- [api/main.py](api/main.py): `/health`, `/chat`, and `/analyze` endpoints.
+- [core/retriever.py](core/retriever.py): environmental variable extraction and evidence retrieval.
+- [core/reasoner.py](core/reasoner.py): local LLM calls and response processing.
+- [core/validator.py](core/validator.py): output checks.
+- [core/scoring.py](core/scoring.py): heuristic health score.
+- [core/planner.py](core/planner.py): intervention roadmap.
+- [knowledge/knowledge_base.py](knowledge/knowledge_base.py): curated evidence.
+- [knowledge/build_kb.py](knowledge/build_kb.py): builds the persistent ChromaDB collection.
+
+## Detailed design notes
+
+### 1. Project Overview
 
 Darukaa.Earth AI Biodiversity Intelligence Chatbot is a Retrieval-Augmented Generation (RAG) based system designed to analyze environmental conditions and provide evidence-backed biodiversity and land-management recommendations.
 
@@ -26,7 +78,7 @@ Biodiversity status
 
 The final response contains structured recommendations, environmental variables used, impacted metrics, evidence citations, time horizon, confidence, validation information, and an intervention roadmap.
 
-2. System Architecture
+### 2. System Architecture
 
                          ┌───────────────────────────┐
                          │        USER / FARMER       │
@@ -143,7 +195,7 @@ The final response contains structured recommendations, environmental variables 
                          │ Health score + roadmap    │
                          └───────────────────────────┘
 
-3. How the System Works
+### 3. How the System Works
 
 Step 1 — User Input
 
@@ -172,7 +224,7 @@ For example:
 
 The system only treats information explicitly present in the user's input as an environmental variable. It does not invent missing measurements.
 
-4. Knowledge Retrieval
+### 4. Knowledge Retrieval
 
 The retriever converts the query into embeddings using:
 
@@ -232,7 +284,7 @@ Content
 
 This allows the reasoning layer to show where recommendations originate.
 
-5. Multi-Topic Retrieval
+### 5. Multi-Topic Retrieval
 
 A single semantic query can sometimes be dominated by one environmental topic.
 
@@ -256,7 +308,7 @@ semi-arid → dryland restoration / water conservation / biodiversity
 
 Retrieved documents are then deduplicated and diversified by topic before being supplied to the reasoning layer.
 
-6. Evidence-Grounded Reasoning
+### 6. Evidence-Grounded Reasoning
 
 core/reasoner.py combines:
 
@@ -302,7 +354,7 @@ Use quantitative estimates only when supported by retrieved evidence.
 
 Explicitly state when a quantitative estimate is unavailable.
 
-7. Scientific Evidence and Citations
+### 7. Scientific Evidence and Citations
 
 Every recommendation contains a citation such as:
 
@@ -322,7 +374,7 @@ Quantitative estimate unavailable from retrieved evidence
 
 This avoids fabricating numerical scientific claims.
 
-8. Multi-Metric Reasoning
+### 8. Multi-Metric Reasoning
 
 The chatbot is designed to reason about interactions between environmental factors rather than treating each variable independently.
 
@@ -364,7 +416,7 @@ Potential biodiversity pressure
 
 The exact relationship stated in the final answer is constrained by the retrieved scientific evidence.
 
-9. Validation Layer
+### 9. Validation Layer
 
 The structured response is passed through the biodiversity validator.
 
@@ -396,7 +448,7 @@ Consistency with extracted environmental variables
 
 A recommendation should not pass validation when its citation does not support the proposed intervention or when required environmental information is incorrectly represented.
 
-10. Biodiversity Health Score
+### 10. Biodiversity Health Score
 
 The health-scoring component provides a structured assessment of the environmental situation.
 
@@ -404,7 +456,7 @@ It considers the available environmental constraints and produces a heuristic bi
 
 The score is intended as a decision-support indicator for the prototype rather than a replacement for field measurements or professional ecological assessment.
 
-11. Intervention Planner
+### 11. Intervention Planner
 
 The intervention planner converts recommendations into a practical roadmap.
 
@@ -428,7 +480,7 @@ Landscape-scale or structural interventions.
 
 The planner does not invent a new recommendation. It organizes the validated recommendations according to their supplied time horizons.
 
-12. Conversation Memory
+### 12. Conversation Memory
 
 The system maintains session-level conversation context.
 
@@ -448,7 +500,7 @@ What should I do first?
 
 The system can use the accumulated session context when processing the follow-up request.
 
-13. API
+### 13. API
 
 The backend is implemented using FastAPI.
 
@@ -480,7 +532,7 @@ Supports structured environmental input such as:
   "temperature": 38
 }
 
-14. Project Structure
+### 14. Project Structure
 
 darukaa-biodiversity-ai/
 │
@@ -502,14 +554,14 @@ darukaa-biodiversity-ai/
 ├── ui/
 │   └── app.py
 │
-├── validator.py
-├── planner.py
-├── health_scorer.py
+├── core/validator.py
+├── core/planner.py
+├── core/scoring.py
 ├── requirements.txt
 ├── README.md
 └── .env
 
-15. Technology Stack
+### 15. Technology Stack
 
 Layer
 
@@ -559,13 +611,13 @@ Environment
 
 Local Python virtual environment
 
-16. Local Setup
+### 16. Local Setup
 
 Prerequisites
 
 Install:
 
-Python 3.14+
+A Python environment compatible with requirements.txt
 
 Ollama
 
@@ -621,18 +673,11 @@ Open another terminal:
 .venv\Scripts\Activate.ps1
 streamlit run ui\app.py
 
-17. Environment Configuration
+### 17. Environment Configuration
 
-If environment variables are required, create a .env file in the project root.
+The current reasoner uses constants in `core/reasoner.py` for `http://localhost:11434` and `llama3.2:3b`; setting `OLLAMA_BASE_URL` or `OLLAMA_MODEL` in a `.env` file does not override those constants. The Streamlit client reads `DARUKAA_API_URL` from its process environment.
 
-Example:
-
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3.2:3b
-
-Do not commit private credentials or secrets to GitHub.
-
-18. Example End-to-End Flow
+### 18. Example End-to-End Flow
 
 Input:
 
@@ -642,25 +687,25 @@ Temperature regularly goes above 40 C and irrigation is limited.
 
 Processing:
 
-1. Extract environmental variables
+### 1. Extract environmental variables
           ↓
-2. Generate semantic retrieval queries
+### 2. Generate semantic retrieval queries
           ↓
-3. Retrieve relevant scientific evidence
+### 3. Retrieve relevant scientific evidence
           ↓
-4. Build evidence-grounded reasoning prompt
+### 4. Build evidence-grounded reasoning prompt
           ↓
-5. Generate structured JSON using Ollama
+### 5. Generate structured JSON using Ollama
           ↓
-6. Validate recommendations and citations
+### 6. Validate recommendations and citations
           ↓
-7. Calculate environmental/biodiversity score
+### 7. Calculate environmental/biodiversity score
           ↓
-8. Build intervention roadmap
+### 8. Build intervention roadmap
           ↓
-9. Display final response in Streamlit
+### 9. Display final response in Streamlit
 
-19. Design Principles
+### 19. Design Principles
 
 The project follows several important principles.
 
@@ -688,7 +733,7 @@ Local AI
 
 The reasoning layer uses Ollama locally, reducing dependence on external LLM APIs during demonstration.
 
-20. Limitations
+### 20. Limitations
 
 This project is a prototype decision-support system.
 
@@ -708,15 +753,15 @@ Recommendations depend on the quality and coverage of the retrieved knowledge ba
 
 When the available evidence does not provide a quantitative effect size, the system explicitly reports that a quantitative estimate is unavailable rather than generating an unsupported number.
 
-21. Testing
+### 21. Testing
 
 Basic component checks can be performed with:
 
 python -m py_compile core\retriever.py
 python -m py_compile core\reasoner.py
 python -m py_compile api\main.py
-python -m py_compile validator.py
-python -m py_compile planner.py
+python -m py_compile core/validator.py
+python -m py_compile core/planner.py
 
 Check the API:
 
@@ -728,7 +773,7 @@ POST /chat
 
 and the Streamlit UI.
 
-22. Submission Notes
+### 22. Submission Notes
 
 For the hackathon/job submission, provide:
 
@@ -740,16 +785,11 @@ This README overview
 
 Any required reviewer credentials or access instructions
 
-If the GitHub repository is private, grant access to:
-
-ankita.dasgupta@darukaa.com
-harsh.kumar@darukaa.com
-utkarsh.gauniya@darukaa.com
-guneet.mutreja@darukaa.com
+If the GitHub repository is private, grant access to the intended reviewers through GitHub permissions.
 
 If the repository is public, only the repository URL is required.
 
-23. Project Summary
+### 23. Project Summary
 
 Darukaa.Earth combines:
 
